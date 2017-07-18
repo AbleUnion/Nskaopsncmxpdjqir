@@ -172,6 +172,5 @@ END;
 		}
 	}
 	public function onItemHeld(PlayerItemHeldEvent $e) {
-		$rpgitem = $e->getItem()->getNamedTag()->;
 	}
 }
