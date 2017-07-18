@@ -1,0 +1,16 @@
+name: RPGItem
+main: RPGItem\Main
+version: BETA
+api:
+- 2.0.0
+- 3.0.0
+- 3.0.1
+author: djdisodo
+commands:
+ rpgitem:
+  usage: /rpgitem
+  description: rpgitem command
+  permission: rpgitem.command
+permissions:
+ rpgitem.command:
+  default: true
