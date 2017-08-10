@@ -8,6 +8,9 @@ use pocketmine\utils\TextFormat;
 use pocketmine\Player;
 use pocketmine\command\defaults\GiveCommand;
 use pocketmine\event\player\PlayerItemHeldEvent;
+use pocketmine\entity\Item;
+use pocketmine\nbt\NBT;
+use RPGItem\EventListener;
 class Main extends PluginBase implements Listener {
 	static function rc($g) {
 		if ((int)$g >= 100) {
@@ -22,6 +25,7 @@ class Main extends PluginBase implements Listener {
 	}
 	public function onEnable() {
 		$this->getServer()->getPluginManager()->registerEvents($this, $this);
+		$this->getServer()->getPluginManager()->registerEvents(new EventListener($this), $this);
 		if(!file_exists($this->getDataFolder())){
 			mkdir($this->getDataFolder());
 		}
@@ -128,11 +132,36 @@ END;
 					return true;
 				} else {
 					$item = json_decode(file_get_contents($this->getDataFolder() . 'items' . DIRECTORY_SEPARATOR . $args[0] . '.json'), true);
-					$item['itemcode'] = $args[2];
+					$item['itemcode'] = explode(':', $args[2]);
+					if(!isset($item['itemcode'][1])) $item['itemcode'][1] = 0;
 					file_put_contents($this->getDataFolder() . 'items' . DIRECTORY_SEPARATOR . $args[0] . '.json', json_encode($item));
 					$sender->sendMessage(TextFormat::WHITE . '아이템코드를' . $args[2] . '로 설정하였습니다');
 					return true;
 				}
+			}
+			//durability
+			if ($args[1] == 'durability') {
+				if (!is_file($this->getDataFolder() . 'items' . DIRECTORY_SEPARATOR . $args[0] . '.json')) {
+					$sender->sendMessage(TextFormat::WHITE . '없는 아이템 이름입니다');
+					return true;
+				}
+				$item = json_decode(file_get_contents($this->getDataFolder() . 'items' . DIRECTORY_SEPARATOR . $args[0] . '.json'), true);
+				if(!isset($args[2])) {
+					$sender->sendMessage('/rpgitem <자기가적은이름> durability (횟수)');
+					return true;
+				}
+				if(!is_numeric($args[2])) {
+					$sender->sendMessage('횟수는 숫자여야 합니다');
+					return true;
+				}
+				if($args[2] == '0') {
+					$sender->sendMessage($args[0] . '의 내구도를 무제한으로 설정하였습니다');
+					return true;
+				}
+				$item['dura'] = (int)$args[2];
+				$sender->sendMessage($args[0] . '의 내구도를' . $args[2] . '회로 제한하였습니다');
+				file_put_contents($this->getDataFolder() . 'items' . DIRECTORY_SEPARATOR . $args[0] . '.json', json_encode($item));
+				return true;
 			}
 			//give
 			if ($args[1] == 'give') {
@@ -148,29 +177,32 @@ END;
 				}				
 				$item = json_decode(file_get_contents($this->getDataFolder() . 'items' . DIRECTORY_SEPARATOR . $args[0] . '.json'), true);
 				//아이템 이름 적용
+				$nbttag = array();
+				if(isset($item['dura'])) {
+					$nbttag['rpg_dura'] = $item['dura'];
+					$rpg_dura = ' ' . $item['dura'] . '/' . $item['dura'];
+				} else {
+					$rpg_dura = NULL;
+				}
 				$nbttag['rpgitem'] = $args[0];
 				$nbttag['CanPlaceOn'] = array("air");
 				if (isset($item['display'])) {
-					$nbttag['display'] = array("Name" => urldecode($item['display']));
+					$nbttag['display'] = array("Name" => (urldecode($item['display']) . $rpg_dura));
 					$sender->sendMessage($nbttag['display']);
 				}
 				//아이템 코드
 				if (!isset($item['itemcode'])) {
-					$ic = 268;
+					$item['itemcode'][0] = 268;
+					$item['itemcode'][1] = 0;
 				}
 				if (!isset($args[2])) {
 					$args[2] = $sender->getName();
 				}
-				$cargs[0] = $args[2];
-				$cargs[1] = $ic;
-				$cargs[2] = 1;
-				$cargs[3] = stripslashes( json_encode($nbttag) );
-				$sender->sendMessage($cargs[3]);
-				$givecommand = new GiveCommand('rpgitem');
-				$givecommand->execute($sender, 'give', $cargs);
+				$gitem = \pocketmine\item\Item::get((int)$item['itemcode'][0], (int)$item['itemcode'][1], 1);
+				$gitem->setNamedTag(NBT::parseJSON(json_encode($nbttag)));
+				$this->getServer()->getPlayer($args[2])->getInventory()->addItem($gitem);
+				$sender->sendMessage($args[0] . '을 획득하였다');
 			}
 		}
-	}
-	public function onItemHeld(PlayerItemHeldEvent $e) {
 	}
 }
