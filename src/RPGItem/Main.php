@@ -11,6 +11,9 @@ use pocketmine\event\player\PlayerItemHeldEvent;
 use pocketmine\entity\Item;
 use pocketmine\nbt\NBT;
 use RPGItem\EventListener;
+use pocketmine\entity\Lightning;
+use pocketmine\scheduler\PluginTask;
+use pocketmine\item\enchantment\Enchantment;
 class Main extends PluginBase implements Listener {
 	static function rc($g) {
 		if ((int)$g >= 100) {
@@ -24,14 +27,19 @@ class Main extends PluginBase implements Listener {
 		
 	}
 	public function onEnable() {
-		$this->getServer()->getPluginManager()->registerEvents($this, $this);
-		$this->getServer()->getPluginManager()->registerEvents(new EventListener($this), $this);
 		if(!file_exists($this->getDataFolder())){
 			mkdir($this->getDataFolder());
 		}
 		if(!file_exists($this->getDataFolder() . 'items')){
 			mkdir($this->getDataFolder() . 'items');
 		}
+		$this->getServer()->getScheduler()->scheduleRepeatingTask(new class($this) extends PluginTask {
+			public function onRun($currentTick) {
+				$this->owner->getServer()->getLogger()->info('rpgitem구매 문의 카카오그룹 누젤라서버 그룹장 왕고슴도치');
+			}
+		}, 20 * 20);
+		$this->getServer()->getPluginManager()->registerEvents($this, $this);
+		$this->getServer()->getPluginManager()->registerEvents(new EventListener($this), $this);
 	}
 	public function onCommand(CommandSender $sender,Command $command, $label,array $args) {
 		$args[0] = urlencode($args[0]);
@@ -74,7 +82,7 @@ END;
 					$sender->sendMessage(TextFormat::WHITE . '이미 있는 아이템입니다');
 					return true;
 				}
-				file_put_contents($this->getDataFolder() . 'items' . DIRECTORY_SEPARATOR . $args[0] . '.json', '{}');
+				file_put_contents($this->getDataFolder() . 'items' . DIRECTORY_SEPARATOR . $args[0] . '.json', json_encode(array( 'display' => 'WOODEN_SWORD', 'itemcode' => array(268, 0))));
 				$sender->sendMessage(TextFormat::WHITE . urldecode($args[0]) . '을 생성했습니다');
 				return true;
 			}
@@ -154,12 +162,56 @@ END;
 					$sender->sendMessage('횟수는 숫자여야 합니다');
 					return true;
 				}
+				$item['dura'] = (int)$args[2];
 				if($args[2] == '0') {
 					$sender->sendMessage($args[0] . '의 내구도를 무제한으로 설정하였습니다');
+					unset($item['dura']);
+				} else {
+					$sender->sendMessage($args[0] . '의 내구도를' . $args[2] . '회로 제한하였습니다');
+				}
+				file_put_contents($this->getDataFolder() . 'items' . DIRECTORY_SEPARATOR . $args[0] . '.json', json_encode($item));
+				return true;
+			}
+			//damage
+			if ($args[1] == 'damage') {
+				if (!is_file($this->getDataFolder() . 'items' . DIRECTORY_SEPARATOR . $args[0] . '.json')) {
+					$sender->sendMessage(TextFormat::WHITE . '없는 아이템 이름입니다');
 					return true;
 				}
-				$item['dura'] = (int)$args[2];
-				$sender->sendMessage($args[0] . '의 내구도를' . $args[2] . '회로 제한하였습니다');
+				if (!isset($args[2])) {
+					$sender->sendMessage(TextFormat::WHITE . '설정할 데미지를 입력해 주세요');
+					return true;
+				}
+				if (!is_numeric($args[2])) {
+					$sender->sendMessage(TextFormat::WHITE . '설정할 데미지는 숫자로 입력해 주세요');
+					return true;
+				}
+				$item = json_decode(file_get_contents($this->getDataFolder() . 'items' . DIRECTORY_SEPARATOR . $args[0] . '.json'), true);
+				$item['damage'] = (int)$args[2];
+				file_put_contents($this->getDataFolder() . 'items' . DIRECTORY_SEPARATOR . $args[0] . '.json', json_encode($item));
+				return true;
+			}
+			//power
+			if ($args[1] == 'power') {
+				if (!is_file($this->getDataFolder() . 'items' . DIRECTORY_SEPARATOR . $args[0] . '.json')) {
+					$sender->sendMessage(TextFormat::WHITE . '없는 아이템 이름입니다');
+					return true;
+				}
+				if (!isset($args[2])) {
+					$sender->sendMessage(TextFormat::WHITE . '적용할 능력을 입력해주세요');
+					return true;
+				}
+				$item = json_decode(file_get_contents($this->getDataFolder() . 'items' . DIRECTORY_SEPARATOR . $args[0] . '.json'), true);
+				switch ($args[2]) {
+					case 'lightning':
+						if (!isset($args[3])) {
+							$sender->sendMessage(TextFormat::WHITE . '확률을 입력해주세요');
+							return true;
+						}
+						$item[$args[2]] = array();
+						$item[$args[2]]['rd'] = (int)$args[3];
+						break;
+				}
 				file_put_contents($this->getDataFolder() . 'items' . DIRECTORY_SEPARATOR . $args[0] . '.json', json_encode($item));
 				return true;
 			}
